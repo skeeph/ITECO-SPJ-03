@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class Message {
     private String author;
     private String message;
+    private String address;
 }
