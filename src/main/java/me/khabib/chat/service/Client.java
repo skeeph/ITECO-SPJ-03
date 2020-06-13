@@ -3,7 +3,8 @@ package me.khabib.chat.service;
 import me.khabib.chat.dto.Message;
 import me.khabib.chat.serializers.MessageDeserializer;
 import me.khabib.chat.serializers.MessageSerializer;
-import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -29,49 +30,55 @@ public class Client {
     private final String username;
     private final Consumer<String, Message> consumer;
     private final Producer<String, Message> producer;
+    private boolean stopped = false;
 
 
     public Client(String username) {
         this.username = username;
-        this.topic = "messages:pv:" + username;
+        this.topic = "messages.pv." + username;
         this.consumer = createConsumer();
         this.producer = createProducer();
     }
 
+    private void createTopics() {
+        AdminClient adminClient = AdminClient.create(getKafkaProps());
+        NewTopic privateTopic = new NewTopic(topic, 1, (short) 1); 
+        NewTopic broadcastTopic = new NewTopic(BROADCAST_TOPIC, 1, (short) 1);
+        adminClient.createTopics(List.of(privateTopic, broadcastTopic));
+        adminClient.close();
+
+    }
+
     private Consumer<String, Message> createConsumer() {
-        final Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                BOOTSTRAP_SERVERS);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "consumer_" + username);
-
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                MessageDeserializer.class.getName());
-
         // Create the consumer using props.
-        final Consumer<String, Message> consumer = new KafkaConsumer<>(props);
+        createTopics();
+        final Consumer<String, Message> consumer = new KafkaConsumer<>(getKafkaProps());
 
         // Subscribe to the topic.
-        consumer.subscribe(List.of(BROADCAST_TOPIC));
+        consumer.subscribe(List.of(BROADCAST_TOPIC, topic));
         return consumer;
     }
 
     private Producer<String, Message> createProducer() {
-        Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                BOOTSTRAP_SERVERS);
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "producer" + username);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                MessageSerializer.class.getName());
+        Properties props = getKafkaProps();
         return new KafkaProducer<>(props);
+    }
+
+    private Properties getKafkaProps() {
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "producer" + username);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "consumer_" + username);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, MessageSerializer.class.getName());
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, MessageDeserializer.class.getName());
+        return props;
     }
 
     public void consume() {
         try {
-            while (!Thread.interrupted()) {
+            while (!this.stopped) {
                 ConsumerRecords<String, Message> records = this.consumer.poll(Duration.ofSeconds(1));
                 for (ConsumerRecord<String, Message> record : records) {
                     Message message = record.value();
@@ -87,9 +94,13 @@ public class Client {
         }
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(String address, String message) {
+        String topic;
+        if ("all".equals(address))
+            topic = BROADCAST_TOPIC;
+        else topic = "messages.pv." + address;
         final ProducerRecord<String, Message> record =
-                new ProducerRecord<>(BROADCAST_TOPIC, new Message(this.username, message));
+                new ProducerRecord<>(topic, new Message(this.username, message));
         producer.send(record, (metadata, exception) -> {
             if (metadata != null) {
                 //TODO 14.06.2020 murtuzaaliev: Логгирование!
@@ -102,6 +113,9 @@ public class Client {
             }
         });
         producer.flush();
+    }
 
+    public void stop() {
+        this.stopped = true;
     }
 }
