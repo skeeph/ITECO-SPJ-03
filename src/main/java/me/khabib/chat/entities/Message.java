@@ -20,14 +20,17 @@ public class Message {
 
     private Long time;
 
-    // TODO: 20.06.2020 Переделать связи на LAZY после включения транзакций
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name="user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="author_id")
     private User author;
 
 
-    // TODO: 20.06.2020 Переделать связи на LAZY после включения транзакций
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="chat_id")
     private Chat chat;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 3)
+    private MessageDirection direction;
+
 }

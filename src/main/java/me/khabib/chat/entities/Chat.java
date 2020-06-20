@@ -1,16 +1,16 @@
 package me.khabib.chat.entities;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import net.bytebuddy.build.ToStringPlugin;
 
 import javax.persistence.*;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-@Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter @Setter
 @Entity
 @Table(name = "chats")
 public class Chat {
@@ -26,9 +26,8 @@ public class Chat {
 
     @ManyToMany(mappedBy = "chats")
     @ToStringPlugin.Exclude
-    private List<User> users;
+    private Set<User> users = new HashSet<>();
 
-    // TODO: 20.06.2020 Переделать связи на LAZY после включения транзакций
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "chat")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "chat")
     private List<Message> messages;
 }
