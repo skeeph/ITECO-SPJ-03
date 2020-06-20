@@ -4,6 +4,9 @@ networks:
   kafka-net:
     driver: bridge
 
+volumes:
+  database:
+
 services:
   zookeeper-server:
     container_name: zoo
@@ -18,7 +21,7 @@ services:
     container_name: kafka
     image: 'bitnami/kafka:latest'
     networks:
-      - kafka-net    
+      - kafka-net
     ports:
       - '9092:9092'
     environment:
@@ -27,3 +30,15 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
       - zookeeper-server
+  db:
+    image: postgres:12-alpine
+    volumes:
+      - database:/var/lib/postgresql/data
+    container_name: message_db
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_DB=chat
+      - POSTGRES_USER=chat
+      - POSTGRES_PASSWORD=chat
+

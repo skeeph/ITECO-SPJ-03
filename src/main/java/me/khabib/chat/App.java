@@ -1,12 +1,16 @@
-package me.khabib.chat.main;
+package me.khabib.chat;
 
 import me.khabib.chat.service.Client;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
+@SpringBootApplication
 public class App {
-    public static void main(String[] args) throws InterruptedException {
+    // TODO Вынести в сервис
+    public static void main1(String[] args) throws InterruptedException {
         Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
         System.out.println("Добро пожаловать. Введите свое имя");
         String username = scanner.nextLine();
@@ -24,5 +28,9 @@ public class App {
         }
         client.stop();
         t.join();
+    }
+
+    public static void main(String[] args) {
+        SpringApplication.run(App.class, args);
     }
 }
