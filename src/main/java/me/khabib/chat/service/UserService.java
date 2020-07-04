@@ -5,21 +5,27 @@ import me.khabib.chat.entities.Role;
 import me.khabib.chat.entities.User;
 import me.khabib.chat.repo.UsersRepository;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.Optional;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
     private final UsersRepository usersRepository;
     private final MessageService messageService;
+    private final PasswordEncoder passwordEncoder;
     @Getter
     private User currentUser;
 
-    public UserService(UsersRepository usersRepository, MessageService messageService) {
+    public UserService(UsersRepository usersRepository, MessageService messageService, PasswordEncoder passwordEncoder) {
         this.usersRepository = usersRepository;
         this.messageService = messageService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -66,5 +72,16 @@ public class UserService {
 
     public Optional<User> findUser(String userName) {
         return usersRepository.findByUsername(userName);
+    }
+
+    @Transactional
+    public void setCurrentUserPassword(String password) {
+        currentUser.setPassword(passwordEncoder.encode(password));
+        saveUser(currentUser);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return findUser(username).orElseThrow(() -> new UsernameNotFoundException(username));
     }
 }
